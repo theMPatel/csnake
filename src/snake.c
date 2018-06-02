@@ -62,6 +62,15 @@ void set_text_color(int color )
 	}
 }
 
+void set_text_bkgrd(int color)
+{
+	if (!color) {
+		printf("\e[%dm", color);
+	} else {
+		printf("\e[%d;%dm", color & 0x10 ? 1 : 0, (color & 0xF) + 40);
+	}
+}
+
 void goto_coor(int x, int y)
 {
 	printf("\e[%d;%dH", x, y);
@@ -72,63 +81,63 @@ void clear_scr(void)
 	printf("\e[H\e[J");
 }	
 
-void get_border(void)
+void write_border(void)
 {
-	int x, y;
-
+	int x,y;
+	set_text_color(RED);
 	for (x = 0; x < MAX_ROW; ++x) {
-		for (y=0; y < MAX_COL; ++y){
+		for (y=0; y < MAX_COL; ++y) {
+			
+			if (x == 0 || x == MAX_ROW-1) {
+				goto_coor(x, y);
+				printf("*");
 
-			if (x==0 || x == MAX_ROW-1){
+			} else if (y == 0 || y == MAX_COL-1) {
+				goto_coor(x, y);
 				printf("*");
-				goto_coor(x,y);
-			}else if (y == 0 || y == MAX_COL-1) {
-				printf("*");
-				goto_coor(x,y);
 			}
 
 		}
 	}
+	set_text_color(RESETATTR);
 }
 
 // This function will setup the screen to make sure
 // that terminal inputs will get blocked from view
-void setup_scr(void)
+void setup_scr(coor_t *apple, snake_t *snake)
 {
 	system ("stty cbreak -echo stop u");
 	clear_scr();
+	write_border();
+
+	set_text_color(YELLOW);
+	goto_coor(apple->row, apple->col);
+	printf("%c", APPLE);
+	set_text_color(RESETATTR);
+
+	set_text_bkgrd(WHITE);
+
+	for (coor_t *ptr=snake->body; ptr<=snake->tail; ptr++) {
+		goto_coor(ptr->row, ptr->col);
+		printf(" ");
+	}
+
+	set_text_bkgrd(RESETATTR);
 }
 
 void get_rand_coor(coor_t *rand_coor)
 {
-	rand_coor->row = rand() % MAX_ROW;
-	rand_coor->col = rand() % MAX_COL;
-}
-
-void two_d_arr_setter(int x, int y, two_d_char_arr_t *arr, char val)
-{
-	char *grid_ptr = arr->grid_ptr;
-	int row = arr->row;
-	int col = arr->col;
-
-	if (x > row || y > col) {
-		return;
-	}
-
-	*(grid_ptr + (x * col) + y) = val;
-}
-
-char two_d_arr_getter(int x, int y, two_d_char_arr_t *arr)
-{
-	char *grid_ptr = arr->grid_ptr;
-	int row = arr->row;
-	int col = arr->col;
-
-	if (x > row || y > col){
-		return '~';
-	}
-
-	return *(grid_ptr + (x * col) + y);
+	// A border is defined as:
+	// 
+	// ******************************
+	// *							*
+	// 
+	// The actual screen space is going to be
+	// between the two asterisks hence -2
+	// and +1 to get the coordinate in front
+	// of the first asterisk
+	rand_coor->row = (rand() % (MAX_ROW-2))+1;
+	rand_coor->col = (rand() % (MAX_COL-2))+1;
 }
 
 int setup_game(struct winsize *current_scr, struct game_t *game_state,
@@ -142,56 +151,130 @@ int setup_game(struct winsize *current_scr, struct game_t *game_state,
 
 	MAX_ROW = current_scr->ws_row;
 	MAX_COL = current_scr->ws_col;
-
-	// Initialize the struct for the 2d array
-	struct two_d_char_arr_t *grid = malloc(sizeof(struct two_d_char_arr_t));
-	char *grid_ptr = (char*) malloc(MAX_ROW*MAX_COL*sizeof(*grid_ptr));
 	
-	grid->grid_ptr = grid_ptr;
-
-	game_state->game_grid = grid;
 	game_state->high_score = 0;
 	game_state->current_score = 0;
 	game_state->best_time = 0;
 
-	// Fill the grid with blanks
-	int i, j;
-	for (i=0; i<MAX_ROW; ++i) {
-		for (j=0; j<MAX_COL; ++j) {
-			two_d_arr_setter(i, j, grid, ' ');
-		}
-	}
-
 	struct coor_t start_gold;
 	get_rand_coor(&start_gold);
+	game_state->current_gold = start_gold;
 
-	// Set the gold value in the grid so we know where it is
-	two_d_arr_setter(start_gold.row, start_gold.col, game_state->game_grid, APPLE);
-
-	snake->head = snake->body;
-	coor_t *arr = snake->head;
+	// Set up the snake body so that we get a starting position
+	snake->tail = snake->body;
+	coor_t *arr = snake->tail;
 
 	arr->row = MAX_ROW/2-1;
 	arr->col = MAX_COL/2-1;
-	arr++;
 
-	for (i=1; i<START_LEN; i++){
+	for (int i=1; i<START_LEN; ++i) {
+		arr++;
 		arr->row = (arr-1)->row;
 		arr->col = (arr-1)->col+1;
-		arr++;
 	}
 
-	snake->head = arr;
-	// Print the apple
-	goto_coor(start_gold.row, start_gold.col);
-	set_text_color(YELLOW);
-	printf("%c", APPLE);
-	set_text_color(RESETATTR);
-
-
-
+	// Move the head pointer forward to the current head forward
+	snake->tail = arr;
+	snake->direction = LEFT;
 
 	return 0;
+}
+
+int check_coordinates(coor_t *a, coor_t *b){
+	return a->row == b->row && a->col == b->col;
+}
+
+int check_wall_collision(coor_t *head)
+{
+
+	if (head->row == 0 || head->row == MAX_ROW) {
+		return 1;
+
+	} else if (head->col == 0 || head->col == MAX_COL){
+		return 1;
+
+	}
+
+	return 0;
+}
+
+int check_self_collision(snake_t *snake, coor_t *start, coor_t *pos)
+{
+	// This function is useful to check the collision of a specified
+	// point and the snake body. 
+	// Normally we want to check the head position
+	// and all the other body parts
+	// 
+	// When creating a new tail object
+	// it is useful to be able to check the collision of the potential
+	// new point and the rest of the body
+	// 
+	for(; start<=snake->tail; ++start){
+		if(check_coordinates(start, pos)){
+			return 1;
+		}
+	}
+	return 0;
+}
+
+int check_collision(snake_t *snake)
+{
+	return check_wall_collision(snake->body) || 
+		check_self_collision(snake, snake->body+1, snake->body);
+
+}
+
+int check_yum_apple(snake_t *snake, coor_t *apple)
+{
+	if (snake->body->row == apple->row 
+		&& snake->body->col == apple->col) {
+		return 1;
+	}
+
+	return 0;
+}
+
+void extend_snake(snake_t *snake)
+{
+	coor_t *prev_tail = snake->tail-1;
+	coor_t *curr_tail = snake->tail;
+
+	// This is the next tail
+	snake->tail++;
+	coor_t directions[4];
+
+	// up, down, right, left
+	// We need to know how to pick the next tail position
+	// We can add to the current tail in 4 different directions
+	// At least one will be the same as prev_tail
+	// some may collide with the snake self
+	// some may collide with the walls
+	// At least one point *should* always work
+	directions[0].row = curr_tail->row-1;
+	directions[0].col = curr_tail->col;
+
+	directions[1].row = curr_tail->row+1;
+	directions[1].col = curr_tail->col;
+
+	directions[2].row = curr_tail->row;
+	directions[2].col = curr_tail->col-1;
+
+	directions[3].row = curr_tail->row;
+	directions[3].col = curr_tail->col+1;
+
+	for (coor_t *ptr=&directions[0]; ptr<=&directions[0]+4; ++ptr) {
+
+		if (!check_coordinates(ptr, prev_tail) && 
+			!check_wall_collision(ptr) && 
+			!check_self_collision(snake, snake->body, ptr)){
+
+			snake->tail->row = ptr->row;
+			snake->tail->col = ptr->col;
+			break;
+		}
+	}
+
+
 }
 
 int main (void)
@@ -210,8 +293,29 @@ int main (void)
 
 	char selection;
 	snake_t snake;
+	char key_chars[NUM_KEYS] = MOVE_KEYS;
 
 	setup_game(&current_scr, &game_state, &snake);
+	setup_scr(&game_state.current_gold, &snake);
+	char keypress;
 
+	do{
+		coor_t next_apple;
+		get_rand_coor(&next_apple);
+
+		do {
+
+		} while (!check_collision(&snake));
+
+
+
+	} while( keypress == 'y' );
+	
+
+
+	set_text_color(RESETATTR);
+
+	clear_scr();
+	printf("%c\n",(char)getchar() );
 	return system("stty sane");
 }

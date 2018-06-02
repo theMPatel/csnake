@@ -26,6 +26,7 @@
 // Define the colors for the pieces
 #define RESETATTR    0
 
+#define RED		0x1
 #define YELLOW	0x13
 #define WHITE	0x17
 
@@ -36,11 +37,10 @@ extern int _ERROR, MAX_ROW, MAX_COL;
 #define MOVE_KEYS {'w', 'a', 's', 'd'}
 
 // Enumeration for magic numbers aka mapping semantics
-typedef enum {UP, LEFT, DOWN, RIGHT} direction_t;
+typedef enum {UP, LEFT, DOWN, RIGHT, NUM_KEYS} direction_t;
 
 // Struct that represents a peice of the
 // snake and it's position
-
 typedef struct coor_t
 {
 	int row, col;
@@ -52,7 +52,7 @@ typedef struct game_t
 	int current_score;
 	double best_time;
 	time_t start_time;
-	struct two_d_char_arr_t *game_grid; 
+	coor_t current_gold;
 
 } game_t;
 
@@ -62,7 +62,7 @@ typedef struct snake_t
 	int direction;
 	int speed;
 	coor_t body[MAX_SCORE+START_LEN];
-	coor_t *head;
+	coor_t *tail;
 
 } snake_t;
 
@@ -78,14 +78,10 @@ typedef struct two_d_char_arr_t
 void signal_setup(int signal, void (*handler)(int));
 void signal_handler(int signal __attribute__((unused)));
 
-// Array handling
-void two_d_arr_setter(int x, int y, two_d_char_arr_t *arr, char val);
-char two_d_arr_getter(int x, int y, two_d_char_arr_t *arr);
-
 // Game specifics
 int setup_game(struct winsize *current_scr, struct game_t *game_state, snake_t *snake);
 void goto_coor(int x, int y);
 void clear_scr(void);
-void setup_scr(void);
+void setup_scr(coor_t *apple, snake_t *snake);
 
 #endif
