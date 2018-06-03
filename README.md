@@ -19,4 +19,4 @@ I thought to my self it would be cool to implement this game and learn a new lan
 
 ## Screenshots
 
-[[https://github.com/theMPatel/csnake/blob/master/screenshots/Screen%20Shot%202018-06-03%20at%2011.20.11%20AM.png]]
+![alt text](https://github.com/theMPatel/csnake/blob/master/screenshots/Screen%20Shot%202018-06-03%20at%2011.20.11%20AM.png)
