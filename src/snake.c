@@ -164,9 +164,7 @@ void setup_game(struct winsize *current_scr, struct game_t *game_state,
 	MAX_ROW = current_scr->ws_row;
 	MAX_COL = current_scr->ws_col;
 	
-	game_state->high_score = 0;
 	game_state->current_score = 0;
-	game_state->best_time = 0;
 
 	struct coor_t apple;
 	get_rand_coor(&apple);
@@ -286,7 +284,8 @@ void extend_snake(snake_t *snake)
 	}
 }
 
-void clear_coordinate(coor_t *clear){
+void clear_coordinate(coor_t *clear)
+{
 	set_text_bkgrd(RESETATTR);
 	set_text_color(RESETATTR);
 	goto_coor(clear->row, clear->col);
@@ -362,10 +361,50 @@ void move(snake_t *snake, char keypress, char *keys)
 	}
 
 	clear_coordinate(&last);
-	print_snake(snake);
+	// print_snake(snake);
+
+	set_text_bkgrd(WHITE);
+	goto_coor(snake->body->row, snake->body->col);
+	printf(" ");
+	set_text_bkgrd(RESETATTR);
 }
 
 void print_game_stats(game_t *game_state) {
+	
+	clear_scr();
+	
+	coor_t game_over;
+	game_over.row = ((MAX_ROW-2)/2) + 1;
+	game_over.col = ((MAX_COL-2)/2) + 1 -10;
+	
+	goto_coor(game_over.row, game_over.col);
+	
+	printf("--G A M E  O V E R--");
+
+	game_over.row++;
+	game_over.col = ((MAX_COL-2)/2) + 1 - 7;
+
+	goto_coor(game_over.row, game_over.col);
+	printf("Best score: %d", game_state->high_score);
+
+	game_over.row++;
+	game_over.col = ((MAX_COL-2)/2) + 1 - 8;
+
+	goto_coor(game_over.row, game_over.col);
+	printf("Current score: %d", game_state->current_score);
+
+
+	game_over.row++;
+	game_over.col = ((MAX_COL-2)/2) + 1 - 5;
+
+	goto_coor(game_over.row, game_over.col);
+	printf("Best time: %f", game_state->best_time);
+
+	game_over.row += 2;
+	game_over.col = ((MAX_COL-2)/2) + 1 - 7;
+
+	goto_coor(game_over.row, game_over.col);
+	printf("Continue? (y/n)");
 
 }
 
@@ -393,28 +432,55 @@ int main (void)
 	do{
 		coor_t next_apple;
 		get_rand_coor(&next_apple);
+		time(&game_state.start_time);
+		game_state.best_time = 0.0;
 
 		while (!check_collision(&snake)) {
 
 			keypress = (char) getchar();
+			printf("%c", keypress);
 			move(&snake, keypress, key_chars);
-			
+			goto_coor(1, 1);
+
 			if (check_yum_apple(&snake, &game_state.apple)) {
 				
 				game_state.current_score++;
+				
+				clear_coordinate(&game_state.apple);
+				
 				game_state.apple.row = next_apple.row;
 				game_state.apple.col = next_apple.col;
+
+				get_rand_coor(&next_apple);
 
 			}
 		}
 
-	} while( keypress == 'y' );
-	
+		time_t end_time;
+		time(&end_time);
+		
+		double diff = difftime(end_time, game_state.start_time);
+		
+		game_state.best_time = game_state.best_time <= diff ? 
+			game_state.best_time : diff;
 
+		game_state.high_score = game_state.high_score < game_state.current_score ?
+			game_state.current_score : game_state.high_score;
+
+		print_game_stats(&game_state);
+
+		do {
+			keypress = (char) getchar();
+		} while (keypress != 'y' && keypress != 'n');
+
+		if (keypress == 'y') {
+			setup_game(&current_scr, &game_state, &snake);
+			setup_scr(&game_state.apple, &snake);
+		}
+
+	} while( keypress == 'y' );
 
 	set_text_color(RESETATTR);
-
 	clear_scr();
-	printf("%c\n",(char)getchar() );
 	return system("stty sane");
 }
