@@ -8,6 +8,7 @@ I thought to my self it would be cool to implement this game and learn a new lan
 ## How to play
 
   1. Movement keys: WASD
+     
      ->As of right now, you must hold the key for you to get movement since the getchar() library
      function blocks until an input is received. Currently working on this so that everything
      moves automatically
