@@ -91,14 +91,14 @@ void write_border(void)
 {
 	int x,y;
 	set_text_color(RED);
-	for (x = 0; x < MAX_ROW; ++x) {
-		for (y=0; y < MAX_COL; ++y) {
+	for (x = 0; x <= MAX_ROW; ++x) {
+		for (y=0; y <= MAX_COL; ++y) {
 			
-			if (x == 0 || x == MAX_ROW-1) {
+			if (x == 1 || x == MAX_ROW) {
 				goto_coor(x, y);
 				printf("*");
 
-			} else if (y == 0 || y == MAX_COL-1) {
+			} else if (y == 1 || y == MAX_COL) {
 				goto_coor(x, y);
 				printf("*");
 			}
@@ -112,6 +112,7 @@ void print_snake(snake_t *snake)
 {
 	set_text_bkgrd(WHITE);
 	for (coor_t *ptr=snake->body; ptr<=snake->tail; ptr++){
+		goto_coor(ptr->row, ptr->col);
 		printf(" ");
 	}
 	set_text_bkgrd(RESETATTR);
@@ -134,6 +135,7 @@ void setup_scr(coor_t *apple, snake_t *snake)
 	write_border();
 	print_apple(apple);
 	print_snake(snake);
+	goto_coor(0,0);
 }
 
 void get_rand_coor(coor_t *rand_coor)
@@ -147,8 +149,8 @@ void get_rand_coor(coor_t *rand_coor)
 	// between the two asterisks hence -2
 	// and +1 to get the coordinate in front
 	// of the first asterisk
-	rand_coor->row = (rand() % (MAX_ROW-2))+1;
-	rand_coor->col = (rand() % (MAX_COL-2))+1;
+	rand_coor->row = (rand() % (MAX_ROW-2))+2;
+	rand_coor->col = (rand() % (MAX_COL-2))+2;
 }
 
 void setup_game(struct winsize *current_scr, struct game_t *game_state,
@@ -194,10 +196,10 @@ int check_coordinates(coor_t *a, coor_t *b) {
 
 int check_wall_collision(coor_t *head)
 {
-	if (head->row == 0 || head->row == MAX_ROW) {
+	if (head->row == 1 || head->row == MAX_ROW) {
 		return 1;
 
-	} else if (head->col == 0 || head->col == MAX_COL){
+	} else if (head->col == 1 || head->col == MAX_COL){
 		return 1;
 
 	}
@@ -438,7 +440,6 @@ int main (void)
 		while (!check_collision(&snake)) {
 
 			keypress = (char) getchar();
-			printf("%c", keypress);
 			move(&snake, keypress, key_chars);
 			goto_coor(1, 1);
 
@@ -450,8 +451,11 @@ int main (void)
 				
 				game_state.apple.row = next_apple.row;
 				game_state.apple.col = next_apple.col;
+				print_apple(&game_state.apple);
 
 				get_rand_coor(&next_apple);
+
+				extend_snake(&snake);
 
 			}
 		}
