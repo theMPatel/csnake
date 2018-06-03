@@ -1,9 +1,9 @@
-/*******************************************************
- * 
- * This is the basic header file for the snake program	
- * It defines some important variables for the game
- *
- *******************************************************/
+/********************************************************
+ * 														*
+ * This is the basic header file for the snake program	*
+ * It defines some important variables for the game 	*
+ *														*
+ ********************************************************/
 
 // This is the special variable name that says this file
 // has been defined already. It is a good way to make sure
@@ -52,7 +52,7 @@ typedef struct game_t
 	int current_score;
 	double best_time;
 	time_t start_time;
-	coor_t current_gold;
+	coor_t apple;
 
 } game_t;
 
@@ -79,7 +79,7 @@ void signal_setup(int signal, void (*handler)(int));
 void signal_handler(int signal __attribute__((unused)));
 
 // Game specifics
-int setup_game(struct winsize *current_scr, struct game_t *game_state, snake_t *snake);
+void setup_game(struct winsize *current_scr, struct game_t *game_state, snake_t *snake);
 void goto_coor(int x, int y);
 void clear_scr(void);
 void setup_scr(coor_t *apple, snake_t *snake);

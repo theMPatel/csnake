@@ -1,8 +1,8 @@
-/*
-	This is the first implementation of snake in C.
-	the project exists so that I have method to learn
-	C and because I like the game snake!
-*/
+/************************************************************
+ *	This is my first implementation of snake in C.			*
+ *	the project exists so that I have method to learn		*
+ *	C and because I like the game snake!					*
+ ************************************************************/
 
 #include <signal.h>
 #include <stdio.h>
@@ -79,6 +79,12 @@ void goto_coor(int x, int y)
 void clear_scr(void)
 {
 	printf("\e[H\e[J");
+}
+
+void reset_all(void)
+{
+	set_text_color(RESETATTR);
+	set_text_color(RESETATTR);
 }	
 
 void write_border(void)
@@ -102,6 +108,23 @@ void write_border(void)
 	set_text_color(RESETATTR);
 }
 
+void print_snake(snake_t *snake)
+{
+	set_text_bkgrd(WHITE);
+	for (coor_t *ptr=snake->body; ptr<=snake->tail; ptr++){
+		printf(" ");
+	}
+	set_text_bkgrd(RESETATTR);
+}
+
+void print_apple(coor_t *apple)
+{
+	set_text_color(YELLOW);
+	goto_coor(apple->row, apple->col);
+	printf("%c", APPLE);
+	set_text_color(RESETATTR);
+}
+
 // This function will setup the screen to make sure
 // that terminal inputs will get blocked from view
 void setup_scr(coor_t *apple, snake_t *snake)
@@ -109,20 +132,8 @@ void setup_scr(coor_t *apple, snake_t *snake)
 	system ("stty cbreak -echo stop u");
 	clear_scr();
 	write_border();
-
-	set_text_color(YELLOW);
-	goto_coor(apple->row, apple->col);
-	printf("%c", APPLE);
-	set_text_color(RESETATTR);
-
-	set_text_bkgrd(WHITE);
-
-	for (coor_t *ptr=snake->body; ptr<=snake->tail; ptr++) {
-		goto_coor(ptr->row, ptr->col);
-		printf(" ");
-	}
-
-	set_text_bkgrd(RESETATTR);
+	print_apple(apple);
+	print_snake(snake);
 }
 
 void get_rand_coor(coor_t *rand_coor)
@@ -140,13 +151,14 @@ void get_rand_coor(coor_t *rand_coor)
 	rand_coor->col = (rand() % (MAX_COL-2))+1;
 }
 
-int setup_game(struct winsize *current_scr, struct game_t *game_state,
+void setup_game(struct winsize *current_scr, struct game_t *game_state,
 	snake_t *snake)
 {
 
 	if (current_scr == NULL || game_state == NULL || snake == NULL){
-		_ERROR = 1;
-		return _ERROR;
+		clear_scr();
+		printf("Received NULL pointer->setup_game\n");
+		raise(SIGINT);
 	}
 
 	MAX_ROW = current_scr->ws_row;
@@ -156,9 +168,9 @@ int setup_game(struct winsize *current_scr, struct game_t *game_state,
 	game_state->current_score = 0;
 	game_state->best_time = 0;
 
-	struct coor_t start_gold;
-	get_rand_coor(&start_gold);
-	game_state->current_gold = start_gold;
+	struct coor_t apple;
+	get_rand_coor(&apple);
+	game_state->apple = apple;
 
 	// Set up the snake body so that we get a starting position
 	snake->tail = snake->body;
@@ -176,17 +188,14 @@ int setup_game(struct winsize *current_scr, struct game_t *game_state,
 	// Move the head pointer forward to the current head forward
 	snake->tail = arr;
 	snake->direction = LEFT;
-
-	return 0;
 }
 
-int check_coordinates(coor_t *a, coor_t *b){
+int check_coordinates(coor_t *a, coor_t *b) {
 	return a->row == b->row && a->col == b->col;
 }
 
 int check_wall_collision(coor_t *head)
 {
-
 	if (head->row == 0 || head->row == MAX_ROW) {
 		return 1;
 
@@ -194,7 +203,6 @@ int check_wall_collision(coor_t *head)
 		return 1;
 
 	}
-
 	return 0;
 }
 
@@ -221,7 +229,6 @@ int check_collision(snake_t *snake)
 {
 	return check_wall_collision(snake->body) || 
 		check_self_collision(snake, snake->body+1, snake->body);
-
 }
 
 int check_yum_apple(snake_t *snake, coor_t *apple)
@@ -230,7 +237,6 @@ int check_yum_apple(snake_t *snake, coor_t *apple)
 		&& snake->body->col == apple->col) {
 		return 1;
 	}
-
 	return 0;
 }
 
@@ -270,10 +276,96 @@ void extend_snake(snake_t *snake)
 
 			snake->tail->row = ptr->row;
 			snake->tail->col = ptr->col;
+			return;
+		}
+	}
+
+	if (1) {
+		printf("Error! Snake extension failed\n");
+		raise(SIGINT);
+	}
+}
+
+void clear_coordinate(coor_t *clear){
+	set_text_bkgrd(RESETATTR);
+	set_text_color(RESETATTR);
+	goto_coor(clear->row, clear->col);
+	printf(" ");
+}
+
+void shift_snake_coors(snake_t *snake) {
+	for (coor_t *ptr=snake->tail; ptr>snake->body; --ptr){
+		ptr->row = (ptr-1)->row;
+		ptr->col = (ptr-1)->col;
+	}
+}
+
+void move(snake_t *snake, char keypress, char *keys)
+{
+	int direction;
+	/*
+	 * If direction will be -1 if none of the key presses match.
+	 * If this is the case, it should be because there was no key press
+	 * or an incorrect key press was made, in which case no
+	 * action should be taken.
+	 */
+
+	for (direction=0; direction<=NUM_KEYS; ++direction){
+
+		if (direction == NUM_KEYS) {
+			direction = -1;
+			break;
+		}
+
+		if (keys[direction] == keypress){
 			break;
 		}
 	}
 
+	if (direction == -1) {
+		direction = snake->direction;
+
+	/*
+	 * The user is not allowed to intentionally 
+	 * (or acidentally) run into
+	 * themselves
+	 */
+	} else if (snake->direction+2 == direction || 
+		snake->direction-2 == direction) {
+		direction = snake->direction;
+	
+	} else {
+		snake->direction = direction;
+	}
+
+	coor_t last;
+	last.row = snake->tail->row;
+	last.col = snake->tail->col;
+	shift_snake_coors(snake);
+
+	switch(direction) {
+		case UP:
+			snake->body->row--;
+			break;
+
+		case DOWN:
+			snake->body->row++;
+			break;
+
+		case RIGHT:
+			snake->body->col++;
+			break;
+
+		case LEFT:
+			snake->body->col--;
+			break;
+	}
+
+	clear_coordinate(&last);
+	print_snake(snake);
+}
+
+void print_game_stats(game_t *game_state) {
 
 }
 
@@ -284,30 +376,37 @@ int main (void)
 	// if they start out with a larger terminal
 	struct winsize current_scr;
 	ioctl(0, TIOCGWINSZ, &current_scr);
-	
-	struct game_t game_state;
 
 	signal_setup(SIGINT, signal_handler);
 	signal_setup(SIGHUP, signal_handler);
 	signal_setup(SIGTERM, signal_handler);
 
-	char selection;
-	snake_t snake;
+	char keypress;
 	char key_chars[NUM_KEYS] = MOVE_KEYS;
 
+	snake_t snake;
+	game_t game_state;
+
 	setup_game(&current_scr, &game_state, &snake);
-	setup_scr(&game_state.current_gold, &snake);
-	char keypress;
+	setup_scr(&game_state.apple, &snake);
 
 	do{
 		coor_t next_apple;
 		get_rand_coor(&next_apple);
 
-		do {
+		while (!check_collision(&snake)) {
 
-		} while (!check_collision(&snake));
+			keypress = (char) getchar();
+			move(&snake, keypress, key_chars);
+			
+			if (check_yum_apple(&snake, &game_state.apple)) {
+				
+				game_state.current_score++;
+				game_state.apple.row = next_apple.row;
+				game_state.apple.col = next_apple.col;
 
-
+			}
+		}
 
 	} while( keypress == 'y' );
 	
