@@ -3,7 +3,7 @@
 The awesome game of snake written in C!
 
 Growing up, I would play this game on my dad's cell phone all the time. 
-I thought to my self it would be cool to implement this game and learn a new language!
+I thought to myself that it would be cool to implement this game and learn a new language!
 
 ## How to play
 
